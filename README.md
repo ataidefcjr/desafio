@@ -18,6 +18,7 @@ Se você ja tem o git e python instalados `Abra o terminal e execute os seguinte
 git clone https://github.com/ataidefcjr/desafio
 cd desafio
 pip install -r requirements.txt
+python main.py
 ```
 ## Como usar
 Abra o terminal, navegue até a pasta `cd desafio` e execute o comando `python main.py`
