@@ -7,35 +7,19 @@ import re
 import sys
 import time
 
-range_inicial = '10000000000000000' 
+range_inicial = '20000000000000000' 
 range_final = '3ffffffffffffffff'
 argumentos_collider = '-t 512 -b 112 -p 970 -htsz 28'
-
-batch_script = '''
-@echo off
-"{caminho_completo}" {argumentos_collider} -pb {chave_publica} -pk {range_inicial} -pke {range_final} -wt 10000
-timeout /t 20 >nul 2>&1  // aguarda 20 segundos
-echo Set WshShell = WScript.CreateObject("WScript.Shell") > "%TEMP%\\EnterScript.vbs"
-echo WshShell.SendKeys "~" >> "%TEMP%\\EnterScript.vbs"
-cscript //nologo "%TEMP%\\EnterScript.vbs"
-del "%TEMP%\\EnterScript.vbs"
-exit
-'''
-
-def quebrar_chave(chave_publica, address):
-    caminho_relativo = 'Collider.exe'
-    caminho_completo = os.path.abspath(caminho_relativo)
-    script = batch_script.format(chave_publica=chave_publica, caminho_completo=caminho_completo, argumentos_collider=argumentos_collider, range_inicial=range_inicial, range_final=range_final)
-    verificar = f'https://mempool.space/pt/address/{address}'
-    webbrowser.open_new_tab(verificar)
-
-    try:
-        with open ('startcollider.bat', 'w') as b:
-            b.writelines(script)
-        subprocess.run('startcollider.bat', shell=True, input=b'\n')
-    
-    except Exception as e:
-        print(f"Erro ao executar o script em lote: {e}")
+def check_pollard():
+    if not os.path.exists('Kangaroo.exe'):
+        print('//\n//                "Kangaroo.exe" não encontrado.')
+        print(f'''
+//                Baixe o Kangaroo executavel em https://github.com/JeanLucPons/Kangaroo/releases/tag/2.2 
+//                e salve no diretório do bot: {os.getcwd()}/
+//                Ou compile por sua conta.
+//''')
+        print('Finalizando Script')
+        quit()
 
 def quebrar_pollard(chave_publica, address, gpu):
     verificar = f'https://mempool.space/pt/address/{address}'
@@ -90,12 +74,6 @@ def aguarda_quebra(segundos:int): #Apos chamar o quebrar chave, fica procurando 
     for x in range(segundos):
         sys.stdout.write(f"\rEsperando Quebra da Chave... {x +1}... / {segundos}\n")
         sys.stdout.flush()
-        if os.path.exists(found):
-            with open(found, "r") as file:
-                content = file.read()
-                match = re.search(r'Privat key : (\w+)', content)
-                if match:
-                    return match.group(1)
         if os.path.exists(kfound):
             with open (kfound, "r") as file:
                 content = file.read()
