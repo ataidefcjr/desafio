@@ -1,9 +1,9 @@
 
 ## Introdução
 
-**`Bot`** criado para monitorar a carteira solicitada em busca da sua chave pública, iniciar a quebra usando Kangaroo ou Collider no **`Windows`**
+**`Bot`** criado para monitorar a carteira solicitada em busca da sua chave pública, iniciar a quebra usando Kangaroo no **`Windows`**
 
-**`ATENÇÃO:`** Recomendo a utilização do Kangaroo em primeiro caso, alem de ser mais rápido em meus testes iniciais, o código é mais confiável e está disponível em https://github.com/JeanLucPons/Kangaroo.
+**`ATENÇÃO:`** Baixe o executavel do Kangaroo em https://github.com/JeanLucPons/Kangaroo/releases/tag/2.2 ou compile por conta própria.
 
 O meu código está livre para ser alterado como desejar.
 
@@ -22,23 +22,16 @@ pip install -r requirements.txt
 ## Como usar
 Abra o terminal, navegue até a pasta `cd desafio` e execute o comando `python main.py`
 
-Será solicitado o endereço da carteira a ser monitada e o endereço da sua carteira para tentiva de transferencia, quando encontrado a chave pública será iniciado a quebra de acordo com a sua escolha.(Kangaroo ou Collider)
+Será solicitado o endereço da carteira a ser monitada e o endereço da sua carteira para tentiva de transferencia, quando encontrado a chave pública será iniciado a quebra da chave publica usando Kangaroo.
 
-Se deseja usar apenas **`CPU`**, selecione Kangaroo, então será solicitado se deseja usar `GPU` ou não.
-
-Por padrão o Kangaroo ira utilizar todos os threads disponíveis, se deseja alterar, abra o hashs.py e altere o script na linha 50 de acordo com sua preferencia.
+Por padrão o Kangaroo ira utilizar todos os threads disponíveis, se deseja alterar, abra o hashs.py e altere o script na linha 34 de acordo com sua preferencia.
 
 ## Observações Importantes:
 * O range da chave privada foi limitado para as carteiras `65 e 66` do puzzle, ajuste em hashs.py linhas 10 e 11 se necessário.
 
-* Se for utilizar o Collider execute uma vez e interrompa, ele vai sugerir os melhores valores, basta alterar a variável argumentos em hashs.py na linha 12
-
-* Ambos são executáveis já compilados, recomendo o bloqueio no firewall dos respectivos executáveis.
-
 * Ao efetivar a quebra o bot irá tentar enviar os fundos para sua carteira usando a biblioteca bit, porém em teste realizado durante a live do desafio no canal https://www.youtube.com/@investidorint não funcionou como o esperado, pelo menos nesse caso em específico, mostrando saldo 0 para o endereço.
 
 * Tentei tambem importar na carteira Electrum logo que a transferencia do bot falhou (cerca de 5 segundos) e tambem acusou saldo 0 e não permitiu iniciar transferência.
-
 
 * A `WIF` será exibida no console assim que quebrada a criptografia para que possa tentar por outros meios.
 

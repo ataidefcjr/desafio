@@ -7,9 +7,9 @@ import re
 import sys
 import time
 
-range_inicial = '20000000000000000' 
+range_inicial = '10000000000000000' 
 range_final = '3ffffffffffffffff'
-argumentos_collider = '-t 512 -b 112 -p 970 -htsz 28'
+
 def check_pollard():
     if not os.path.exists('Kangaroo.exe'):
         print('//\n//                "Kangaroo.exe" não encontrado.')
