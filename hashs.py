@@ -15,7 +15,7 @@ def check_pollard():
         print('//\n//                "Kangaroo.exe" não encontrado.')
         print(f'''
 //                Baixe o Kangaroo executavel em https://github.com/JeanLucPons/Kangaroo/releases/tag/2.2 
-//                e salve no diretório do bot: {os.getcwd()}/
+//                e salve no diretório do bot: {os.getcwd()}
 //                Ou compile por sua conta.
 //''')
         print('Finalizando Script')
