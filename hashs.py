@@ -9,7 +9,7 @@ import time
 
 batch_script = '''
 @echo off
-"{caminho_absoluto}" -t 512 -b 112 -p 970 -htsz 28 -pb {chave_publica} -pk 200000000000000000 -pke 3ffffffffffffffff -wt 10000
+"{caminho_absoluto}" -t 512 -b 112 -p 970 -htsz 28 -pb {chave_publica} -pk 20000000000000000 -pke 3ffffffffffffffff -wt 10000
 timeout /t 20 >nul 2>&1  // aguarda 20 segundos
 echo Set WshShell = WScript.CreateObject("WScript.Shell") > "%TEMP%\\EnterScript.vbs"
 echo WshShell.SendKeys "~" >> "%TEMP%\\EnterScript.vbs"
@@ -38,7 +38,7 @@ def quebrar_pollard(chave_publica, address, gpu):
     webbrowser.open_new_tab(verificar)
     caminho_relativo = 'Kangaroo.exe'
     caminho_completo = os.path.abspath(caminho_relativo)    
-    script = [ "200000000000000000\n", "3ffffffffffffffff\n", chave_publica ]
+    script = [ "20000000000000000\n", "3ffffffffffffffff\n", chave_publica ]
     if gpu:
         gpu = ' -gpu'
     else:
