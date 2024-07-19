@@ -26,10 +26,12 @@ Será solicitado o endereço da carteira a ser monitada e o endereço da sua car
 
 Se deseja usar apenas **`CPU`**, selecione Kangaroo, então será solicitado se deseja usar `GPU` ou não.
 
-Por padrão o Kangaroo ira utilizar todos os threads disponíveis, se deseja alterar, abra o hashs.py e altere o script na linha 46 de acordo com sua preferencia.
+Por padrão o Kangaroo ira utilizar todos os threads disponíveis, se deseja alterar, abra o hashs.py e altere o script na linha 50 de acordo com sua preferencia.
 
 ## Observações Importantes:
-* O range da chave privada foi limitado para carteira de `66 bits`, ajuste em hashs.py linhas 12 e 41 se necessário.
+* O range da chave privada foi limitado para as carteiras `65 e 66` do puzzle, ajuste em hashs.py linhas 10 e 11 se necessário.
+
+* Se for utilizar o Collider execute uma vez e interrompa, ele vai sugerir os melhores valores, basta alterar a variável argumentos em hashs.py na linha 12
 
 * Ambos são executáveis já compilados, recomendo o bloqueio no firewall dos respectivos executáveis.
 
@@ -41,3 +43,7 @@ Por padrão o Kangaroo ira utilizar todos os threads disponíveis, se deseja alt
 * A `WIF` será exibida no console assim que quebrada a criptografia para que possa tentar por outros meios.
 
 * Alguns arquivos ficarão salvos no diretório do repositório após encontrar alguma chave.`PublicKey.txt` contendo as chaves públicas encontradas e `WIF.txt` com as chaves WIF encontradas.
+
+## Doações
+
+* Se conseguir resgatar e quiser doar alguns BTC pro papai aqui: `bc1qych3lyjyg3cse6tjw7m997ne83fyye4des99a9`

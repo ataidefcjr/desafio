@@ -7,9 +7,13 @@ import re
 import sys
 import time
 
+range_inicial = '10000000000000000' 
+range_final = '3ffffffffffffffff'
+argumentos_collider = '-t 512 -b 112 -p 970 -htsz 28'
+
 batch_script = '''
 @echo off
-"{caminho_absoluto}" -t 512 -b 112 -p 970 -htsz 28 -pb {chave_publica} -pk 10000000000000000 -pke 3ffffffffffffffff -wt 10000
+"{caminho_completo}" {argumentos_collider} -pb {chave_publica} -pk {range_inicial} -pke {range_final} -wt 10000
 timeout /t 20 >nul 2>&1  // aguarda 20 segundos
 echo Set WshShell = WScript.CreateObject("WScript.Shell") > "%TEMP%\\EnterScript.vbs"
 echo WshShell.SendKeys "~" >> "%TEMP%\\EnterScript.vbs"
@@ -21,7 +25,7 @@ exit
 def quebrar_chave(chave_publica, address):
     caminho_relativo = 'Collider.exe'
     caminho_completo = os.path.abspath(caminho_relativo)
-    script = batch_script.format(chave_publica=chave_publica, abs_path=caminho_completo)
+    script = batch_script.format(chave_publica=chave_publica, caminho_completo=caminho_completo, argumentos_collider=argumentos_collider, range_inicial=range_inicial, range_final=range_final)
     verificar = f'https://mempool.space/pt/address/{address}'
     webbrowser.open_new_tab(verificar)
 
@@ -38,7 +42,7 @@ def quebrar_pollard(chave_publica, address, gpu):
     webbrowser.open_new_tab(verificar)
     caminho_relativo = 'Kangaroo.exe'
     caminho_completo = os.path.abspath(caminho_relativo)    
-    script = [ "10000000000000000\n", "3ffffffffffffffff\n", chave_publica ]
+    script = [f"{range_inicial}\n", f"{range_final}\n", chave_publica ]
     if gpu:
         gpu = ' -gpu'
     else:
