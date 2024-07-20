@@ -20,7 +20,7 @@ def transferir(wif, destino):
     valor = int(saldo)-taxa
     valor = int(valor)
     if valor < 0:
-        print(f'-\n-----------------\nSaldo nao possibilita transação: {saldo} satoshis\n ------------------')
+        print(f'\n-----------------\nSaldo nao possibilita transação: {saldo} satoshis\n ------------------')
         return None
     print(f'Valor a ser transferido: {valor} satoshis')
     print ('Iniciando a transferencia...')
@@ -62,10 +62,9 @@ def monitorar_mempool(address):
             print(f'Procurando Chave Pública...\nResposta API: {response}')
             if response.status_code == 200:
                 chave = response.text
-                print (
-                    f'\n\n------------------------------------------------------------------------------------'
+                print ('\n\n------------------------------------------------------------------------------------'
                     f'\n\nChave Pública: {chave}'
-                    f'\n\n------------------------------------------------------------------------------------\n')
+                    '\n\n------------------------------------------------------------------------------------\n')
                 return chave 
                    
             print('Não encontrada, tentando novamente em 5 segundos...')
