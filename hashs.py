@@ -25,14 +25,15 @@ def quebrar_pollard(chave_publica, address, gpu):
     verificar = f'https://mempool.space/pt/address/{address}'
     webbrowser.open_new_tab(verificar)
     caminho_relativo = 'Kangaroo.exe'
-    caminho_completo = os.path.abspath(caminho_relativo)    
-    script = [f"{range_inicial}\n", f"{range_final}\n", chave_publica ]
+    caminho_completo = os.path.abspath(caminho_relativo)
+    caminho_completo_aspas = f'"{caminho_completo}"'
+    script = [f"{range_inicial}\n", f"{range_final}\n", chave_publica]
     if gpu:
         gpu = ' -gpu'
     else:
         gpu = ''
-    start = f'{caminho_completo}{gpu} -o KFound.txt in.txt'
-    with open ('in.txt', 'w') as i:
+    start = f'{caminho_completo_aspas}{gpu} -o KFound.txt in.txt'
+    with open('in.txt', 'w') as i:
         i.writelines(script)
     time.sleep(1)
     subprocess.run(start, shell=True)
@@ -67,15 +68,15 @@ def converter_wif(address, private_key_hex: str) -> str:
     
     return wif_compressed.decode('utf-8')
 
-def aguarda_quebra(segundos:int): #Apos chamar o quebrar chave, fica procurando a key no arquivo Found.txt na raiz
+def aguarda_quebra(segundos: int): #Apos chamar o quebrar chave, fica procurando a key no arquivo Found.txt na raiz
     found = 'Found.txt'
     kfound = 'KFound.txt'
     time.sleep(1)
     for x in range(segundos):
-        sys.stdout.write(f"\rEsperando Quebra da Chave... {x +1}... / {segundos}\n")
+        sys.stdout.write(f"\rEsperando Quebra da Chave... {x + 1}... / {segundos}\n")
         sys.stdout.flush()
         if os.path.exists(kfound):
-            with open (kfound, "r") as file:
+            with open(kfound, "r") as file:
                 content = file.read()
                 match = re.search(r'Priv: (\w+)', content)
                 if match:
@@ -89,4 +90,3 @@ def aguarda_quebra(segundos:int): #Apos chamar o quebrar chave, fica procurando 
     else:
         chave_privada = input("Insira a chave privada: ")
         return chave_privada
-
