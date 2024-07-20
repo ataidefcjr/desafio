@@ -10,25 +10,24 @@ sim = ['s', 'sim', 'y', 'yes']
 
 def main(address, destino, gpu:bool):
     signal.signal(signal.SIGINT, interrompido)
-    manual = False
-    ########## 1 --- Verifica se ocorreu alguma transação na carteira ---
+    
+    ########## 1 --- Capturar a Chave Pública ---
     inicio = time.time()
     if address == '18ZMbwUFLMHoZBbfpCjUJQTCMCbktshgpe': # Verifica se é um teste
         chave_publica = monitorar_mempool(address) # Busca a carteira
-    else: #Se nao for teste
+        manual = False
+    else:
         manual = input('Deseja inserir a chave pública manualmente? (s/n): ').lower()
-
+    
     if manual in sim:
         chave_publica = input("Insira a chave pública: ")
     else:
         chave_publica = monitorar_mempool(address)
         
-    print (f'\n\n--------------------------------------------------------\n\nChave Pública: {chave_publica}\n\n--------------------------------------------------------------------------------\n')
 
-    ########## 2 --- Quebrar Chave Pública na Privada
+    ########## 2 --- Quebrar Chave Pública na Privada ---
     if chave_publica:
         quebrar_pollard(chave_publica, address, gpu)
-
     else:
         print('Chave Pública não encontrada, terminando script')
         return

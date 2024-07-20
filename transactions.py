@@ -4,13 +4,14 @@ import sys
 import requests
 
 def transferir(wif, destino):
+
+    my_key = PrivateKey(wif)
+    print('---------------------------------------------------\nEndereço da Carteira Capturada: ', my_key.address, '\n---------------------------------------------------')
+    saldo = my_key.balance_as('satoshi')
+    print('---------------------------------------------------\nSaldo da Carteira Capturada: ', saldo, '\n---------------------------------------------------')
     if destino == 'Não Informado':
         print('\nTransferencia não informada, endereço não informado.\n')
         return None
-    my_key = PrivateKey(wif)
-    print('Endereço da Carteira Capturada: ', my_key.address)
-    saldo = my_key.balance_as('satoshi')
-    print('Saldo da Carteira Capturada: ', saldo)
     taxa = network.get_fee('fast') 
     print(f'Taxa de Transação Sugerida (satoshis por byte): {taxa}')
     taxa *= 2
@@ -37,7 +38,7 @@ def transferir(wif, destino):
     
 def verifica_saldo(endereco):
     for x in range(50):
-        sys.stdout.write(f"\rVerificando Saldo da Carteira... Tentativa {x +1}... / 50 ")
+        sys.stdout.write(f"\rVerificando Saldo da Carteira Destino... Tentativa {x +1}... / 50 ")
         sys.stdout.flush()
         transacoes = network.NetworkAPI.get_transactions(address=endereco)
         saldo = network.NetworkAPI.get_balance(endereco) / 1e8
@@ -56,27 +57,24 @@ def verifica_saldo(endereco):
 def monitorar_mempool(address):
     while True:
         try:
-            url = f'https://blockchain.info/rawaddr/{address}'
+            url = f'https://blockchain.info/q/pubkeyaddr/{address}'
             response = requests.get(url)
-            print(f'Procurando Chave Pública... Chamando API... Resposta API: {response}')
+            print(f'Procurando Chave Pública...\nResposta API: {response}')
             if response.status_code == 200:
-                data = response.json()
-                transactions = data.get('txs', [])
-            if transactions:
-                for tx in transactions:
-                    for input_tx in tx.get('inputs', []):
-                        if input_tx.get('prev_out', {}).get('addr') == address:
-                            script = input_tx.get('script')
-                            if script != '':
-                                script = script[-66:]
-                                with open('PublicKey.txt', 'a') as pk:
-                                    pk.write(f'Endereço: {address} \nChave Pública: {script}\n\n')
-                                return script
-
+                chave = response.text
+                print (
+                    f'\n\n------------------------------------------------------------------------------------'
+                    f'\n\nChave Pública: {chave}'
+                    f'\n\n------------------------------------------------------------------------------------\n')
+                return chave 
+                   
             print('Não encontrada, tentando novamente em 5 segundos...')
             sleep(5)
+
         except Exception as e:
-            print (f"Ocorreu uma Excessão ao chamar a API\nSe ocorrer varias vezes verifique se o endereço fornecido está correto\nTentando novamente em 5 segundos")
+            print (f"\n{e}\nOcorreu uma Excessão ao chamar a API
+                   \nSe ocorrer varias vezes verifique se o endereço fornecido está correto
+                   \nTentando novamente em 5 segundos")
             sleep(5)
 
 
