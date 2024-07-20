@@ -15,8 +15,8 @@ def transferir(wif, destino):
     taxa = network.get_fee('fast') 
     print(f'Taxa de Transação Sugerida (satoshis por byte): {taxa}')
     taxa *= 2
-    taxa = int(taxa)
-    print(f'Taxa a ser utilizada: ', taxa)
+    taxa = int(taxa) * 250
+    print(f'---------- >> --------- >> Taxa a ser utilizada: ', taxa)
     valor = int(saldo)-taxa
     valor = int(valor)
     if valor < 0:
