@@ -72,9 +72,9 @@ def monitorar_mempool(address):
             sleep(5)
 
         except Exception as e:
-            print (f"\n{e}\nOcorreu uma Excessão ao chamar a API
-                   \nSe ocorrer varias vezes verifique se o endereço fornecido está correto
-                   \nTentando novamente em 5 segundos")
+            print (f"\n{e}\nOcorreu uma Excessão ao chamar a API"
+                   "\nSe ocorrer varias vezes verifique se o endereço fornecido está correto"
+                   "\nTentando novamente em 5 segundos")
             sleep(5)
 
 
