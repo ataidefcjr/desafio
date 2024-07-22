@@ -7,8 +7,18 @@ import re
 import sys
 import time
 
-range_inicial = '10000000000000000' 
-range_final = '3ffffffffffffffff'
+range_inicial = ''
+range_final = ''
+def ajuste_range(ajuste:bool):
+    global range_inicial
+    global range_final
+    if ajuste:
+        print('Informe o range da chave privada da carteira informada.')
+        range_inicial = input('Digite o Range Inicial (Carteira 66 = 20000000000000000): ')
+        range_final = input('Digite o Range Fianl (Carteira 66 = 3ffffffffffffffff): ')
+    else:
+        range_inicial = '10000000000000000' 
+        range_final = '1ffffffffffffffff'
 
 def check_pollard():
     if not os.path.exists('Kangaroo.exe'):
@@ -21,9 +31,7 @@ def check_pollard():
         print('Finalizando Script')
         quit()
 
-def quebrar_pollard(chave_publica, address, gpu):
-    verificar = f'https://mempool.space/pt/address/{address}'
-    webbrowser.open_new_tab(verificar)
+def quebrar_pollard(chave_publica, gpu):
     caminho_relativo = 'Kangaroo.exe'
     caminho_completo = os.path.abspath(caminho_relativo)
     caminho_completo_aspas = f'"{caminho_completo}"'
@@ -33,6 +41,8 @@ def quebrar_pollard(chave_publica, address, gpu):
     else:
         gpu = ''
     start = f'{caminho_completo_aspas}{gpu} -o KFound.txt in.txt'
+    print(start)
+    print(script)
     with open('in.txt', 'w') as i:
         i.writelines(script)
     time.sleep(1)
@@ -68,7 +78,7 @@ def converter_wif(address, private_key_hex: str) -> str:
     
     return wif_compressed.decode('utf-8')
 
-def aguarda_quebra(segundos: int): #Apos chamar o quebrar chave, fica procurando a key no arquivo Found.txt na raiz
+def aguarda_quebra(segundos: int): #Apos chamar o quebrar chave, fica procurando a key no arquivo KFound.txt na raiz
     found = 'Found.txt'
     kfound = 'KFound.txt'
     time.sleep(1)
