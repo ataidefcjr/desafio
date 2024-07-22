@@ -52,7 +52,7 @@ def main(address, destino, gpu:bool):
 
 if __name__ == '__main__':
     limpeza()
-    # check_pollard()
+    check_pollard()
     
     print('---\nIniciando Script, Atenção\nEsse script busca a chave pública da carteira "alvo" e usa GPU pra quebrar a chave pública na privada, converte em WIF e tenta realizar uma transferencia para sua conta, o código ainda está em desenvolvimento, esteja pronto para transferir manualmente caso falhe.\n---\n')
     
