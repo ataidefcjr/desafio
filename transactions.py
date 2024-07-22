@@ -37,6 +37,23 @@ def transferir(wif, destino):
         return None
     
 def verifica_saldo(endereco):
+    if endereco == '18ZMbwUFLMHoZBbfpCjUJQTCMCbktshgpe':
+        return None
+    print('Verificando saldo da carteira, aguarde...')
+    saldo = network.NetworkAPI.get_balance(endereco) / 1e8
+
+    if saldo > 0:
+        print(f"\n--------------- Carteira: {endereco}: \nSaldo: {saldo:.8f} BTC---------------")
+        return
+
+    else:
+        if input("Carteira sem saldo, deseja continuar? (s/n): ") in ['sim','s','y','yes']:
+            return
+        else:
+            print('Encerrando Bot')
+            quit()
+
+def verifica_saldo_destino(endereco):
     for x in range(50):
         sys.stdout.write(f"\rVerificando Saldo da Carteira Destino... Tentativa {x +1}... / 50 ")
         sys.stdout.flush()
