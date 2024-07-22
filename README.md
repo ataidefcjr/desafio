@@ -28,7 +28,6 @@ Será solicitado o endereço da carteira a ser monitada e o endereço da sua car
 Por padrão o Kangaroo ira utilizar todos os threads disponíveis, se deseja alterar, abra o hashs.py e altere o script na linha 34 de acordo com sua preferencia.
 
 ## Observações Importantes:
-* O range da chave privada foi limitado para as carteiras `65 e 66` do puzzle, ajuste em hashs.py linhas 10 e 11 se necessário.
 
 * Ao efetivar a quebra o bot irá tentar enviar os fundos para sua carteira usando a biblioteca bit, porém em teste realizado durante a live do desafio no canal https://www.youtube.com/@investidorint não funcionou como o esperado, pelo menos nesse caso em específico, mostrando saldo 0 para o endereço.
 
