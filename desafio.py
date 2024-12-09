@@ -6,19 +6,20 @@ import hashlib
 import base58
 
 
-
-
-def generate_random_key(partial_key):
-    """Gera uma chave privada substituindo os 'x' por números hexadecimais aleatórios."""
-    hex_chars = "0123456789abcdef"
-    key_list = list(partial_key)
+def generate_random_key():
+    """Gera uma chave privada substituindo os 'x' por números hexadecimais aleatórios de forma mais eficiente."""
     
-    for i, char in enumerate(key_list):
-        if char == 'x':
-            # Substitui o 'x' por um valor aleatório hexadecimal
-            key_list[i] = random.choice(hex_chars)
+    random_hex = random.choices(hex_chars, k=num_x)
+    
+    # Substituindo 'x' por caracteres hexadecimais gerados
+    j = 0
+    for i in range(len(key_list)):
+        if key_list[i] == 'x':
+            key_list[i] = random_hex[j]
+            j += 1
     
     return "".join(key_list)
+
 
 def check_key(private_key_hex):
     """Verifica se a chave privada corresponde ao endereço de destino."""
@@ -26,6 +27,7 @@ def check_key(private_key_hex):
         priv_key = bytes.fromhex(private_key_hex)
         private_key = secp256k1.PrivateKey(priv_key)
         public_key = private_key.pubkey
+        
         pub_key_hash = hashlib.new('ripemd160', hashlib.sha256(public_key.serialize()).digest()).digest()
         network_prefix = b'\x00' + pub_key_hash
         checksum = hashlib.sha256(hashlib.sha256(network_prefix).digest()).digest()[:4]
@@ -41,7 +43,7 @@ def brute_force_worker(partial_key, queue):
     """Executa o brute-force em uma thread para tentar encontrar a chave privada."""
     hashes_checked = 0
     while True:
-        private_key = generate_random_key(partial_key)
+        private_key = generate_random_key()
         if check_key(private_key):
             print(f"\nChave privada encontrada: {private_key}\n")
             with open('key.txt', "w") as file:
@@ -105,6 +107,11 @@ if __name__ == "__main__":
     
     target_address = "1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC"
     partial_key = "4x3x3x4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x"    
+
+
+    hex_chars = "0123456789abcdef"
+    key_list = list(partial_key)
+    num_x = key_list.count('x')
 
     #Carteira de Teste
     # target_address = "13DiRx5F1b1J8QWKATyLJZSAepKw1PkRbF"
