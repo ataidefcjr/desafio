@@ -13,4 +13,7 @@ Ainda há muito espaço para melhorias, porem preciso aprender sobre como fazer.
 
 Quando a chave for encontrada será mostrado no terminal e salvo no arquivo key.txt
 
+
+Fiz algumas melhorias, referente a geração de chaves e retirando o ultimo passo de encodar com base58, e estou obtendo cerca de 160 mil chaves por segundo
+
     

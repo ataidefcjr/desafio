@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <thread>
 #include <time.h>
+#include <random>
 #include <string>
 #include <cstdlib>
 #include <secp256k1.h>
@@ -22,13 +23,12 @@
 const char *hex_chars = "0123456789abcdef";
 
 
+// char target_address[35] = "13DiRx5F1b1J8QWKATyLJZSAepKw1PkRbF"; //Test address
+// std::string partial_key = "3x91xb084d812356x128xa06a4192587b7xa984fd08dbx31af8e9d4e70810ab2"; // Teste Key
 
-char target_address[35] = "13DiRx5F1b1J8QWKATyLJZSAepKw1PkRbF"; //Test address
-std::string partial_key = "3991xb084d812356x128xa06a4192587b7xa984fd08dbx31af8e9d4e70810ab2"; // Teste Key
 
-// char target_address[34] = "1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC";
-// std::string partial_key = "403b3x4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x";
-
+char target_address[34] = "1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC";
+std::string partial_key = "403b3x4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x";
 
 std::vector<unsigned char> decoded_target_address;
 bool success = decodeBase58(target_address, decoded_target_address);
@@ -63,16 +63,22 @@ int get_valid_input(const char *prompt, int default_value, int is_int)
 }
 
 // Função para gerar as chaves
-void generate_random_key(char *output_key) {
-    strcpy(output_key, partial_key.c_str()); // Converte std::string para char*
+void generate_random_key(std::string &output_key) {
+    static const std::string hex_chars = "0123456789abcdef"; // Conjunto de caracteres hexadecimais
+    static std::random_device rd; // Dispositivo para gerar números aleatórios
+    static std::mt19937 gen(rd()); // Gerador de números aleatórios Mersenne Twister
+    static std::uniform_int_distribution<> dis(0, 15); // Distribuição uniforme para números de 0 a 15
+
     int len = partial_key.length();
 
+    output_key.resize(len); // Redimensiona o vetor de saída para o tamanho necessário
     for (int i = 0; i < len; i++) {
         if (partial_key[i] == 'x') {
-            output_key[i] = hex_chars[rand() % 16]; // Substitui 'x' por um caractere aleatório
+            output_key[i] = hex_chars[dis(gen)]; // Substitui 'x' por um caractere aleatório
+        } else {
+            output_key[i] = partial_key[i]; // Mantém os caracteres que não são 'x'
         }
     }
-    // printf("%s\n", output_key);
 }
 
 // Função para calcular o SHA-256
@@ -149,7 +155,7 @@ std::vector<uint8_t> privateKeyToBitcoinAddress(const std::vector<uint8_t> &priv
 }
 
 // Função de comparação entre o endereço gerado e o alvo
-int check_key(const char *private_key)
+int check_key(std::string private_key)
 {
     try
     {
@@ -179,7 +185,7 @@ int check_key(const char *private_key)
 void *bruteforce_worker(void *args)
 {
     ThreadArgs *thread_args = (ThreadArgs *)args;
-    char generated_key[65]; // Para armazenar a chave gerada
+    std::string generated_key; // Para armazenar a chave gerada
     int counter = 0;
     
     std::this_thread::sleep_for(std::chrono::milliseconds((thread_args->thread_id + 1) * 34));
@@ -194,12 +200,12 @@ void *bruteforce_worker(void *args)
 
             // Protege a escrita no arquivo com o mutex
             pthread_mutex_lock(&file_lock);
-            printf("\nThread %d encontrou a chave: %s\n", thread_args->thread_id, generated_key);
+            printf("\nThread %d encontrou a chave: %s\n", thread_args->thread_id, generated_key.c_str());
 
             FILE *file = fopen("key.txt", "w");
             if (file != NULL)
             {
-                fprintf(file, "Chave privada encontrada: %s\n", generated_key);
+                fprintf(file, "Chave privada encontrada: %s\n", generated_key.c_str());
                 fclose(file);
             }
             pthread_mutex_unlock(&file_lock);
@@ -215,10 +221,6 @@ void *bruteforce_worker(void *args)
         if (elapsed.count() >= thread_args->refresh_time) {
 
             double keys_per_second = counter / elapsed.count();
-
-            // Imprime a quantidade de chaves verificadas a cada intervalo de refresh_time
-            // std::cout << "Thread " << thread_args->thread_id << ": Last Key = " << generated_key 
-            //           << " Speed: " << keys_per_second << " Keys/s\n";
 
             global_counter += keys_per_second;
             // Reinicia o contador e o tempo
@@ -237,40 +239,45 @@ void *bruteforce_worker(void *args)
 
 int main()
 {
+    try{
 
-    int refresh_time = get_valid_input("Taxa de atualização (em segundos): ", 1, 1);
-    int num_processes = get_valid_input("Quantidade de Threads (Padrão 12): ", 12, 1);
+        int refresh_time = get_valid_input("Taxa de atualização (em segundos): ", 1, 1);
+        int num_processes = get_valid_input("Quantidade de Threads (Padrão 12): ", 12, 1);
 
-    // Configura as threads
-    pthread_t threads[num_processes];
-    ThreadArgs thread_args[num_processes];
+        // Configura as threads
+        pthread_t threads[num_processes];
+        ThreadArgs thread_args[num_processes];
 
-    for (int i = 0; i < num_processes; i++)
-    {
-        thread_args[i].thread_id = i;
-        thread_args[i].refresh_time = refresh_time;
+        for (int i = 0; i < num_processes; i++)
+        {
+            thread_args[i].thread_id = i;
+            thread_args[i].refresh_time = refresh_time;
 
-        pthread_create(&threads[i], nullptr, bruteforce_worker, &thread_args[i]);
+            pthread_create(&threads[i], nullptr, bruteforce_worker, &thread_args[i]);
+        }
+
+        auto start_time = std::chrono::high_resolution_clock::now();
+        
+        while (!found) {
+            std::cout << "\r" << global_counter << " Keys/s" << " Last Key Checked: " << last_key << std::flush;
+            global_counter = 0;
+            std::this_thread::sleep_for(std::chrono::seconds(refresh_time));
+        }
+
+        // Aguarda todas as threads finalizarem
+        for (int i = 0; i < num_processes; i++)
+        {
+            pthread_join(threads[i], nullptr);
+        }
+
+        pthread_mutex_destroy(&file_lock);
+
+        std::cout << "\nProcesso concluído." << std::endl;
+    }catch(const std::exception &e){
+        std::cout << "\nErro: " << e.what() << std::endl;
     }
-
-    auto start_time = std::chrono::high_resolution_clock::now();
-    
-    while (!found) {
-        std::this_thread::sleep_for(std::chrono::seconds(refresh_time));
-
-        std::cout << "\r" << global_counter << " Keys/s" << " Last Key Checked: " << last_key << std::flush;
-        global_counter = 0;
-
+    catch(...){
+        printf("\nErro não identificado\n");
     }
-
-    // Aguarda todas as threads finalizarem
-    for (int i = 0; i < num_processes; i++)
-    {
-        pthread_join(threads[i], nullptr);
-    }
-
-    pthread_mutex_destroy(&file_lock);
-
-    std::cout << "Processo concluído." << std::endl;
     return 0;
 }
