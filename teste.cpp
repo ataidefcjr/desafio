@@ -25,6 +25,9 @@ char target_address[34] = "1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC";
 volatile int found = 0;
 pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER;
 
+double global_counter = 0;
+std::string last_key;
+
 // Threads Args
 typedef struct
 {
@@ -173,7 +176,7 @@ void *bruteforce_worker(void *args)
     char generated_key[65]; // Para armazenar a chave gerada
     int counter = 0;
     
-    std::this_thread::sleep_for(std::chrono::milliseconds((thread_args->thread_id + 1) * 28));
+    std::this_thread::sleep_for(std::chrono::milliseconds((thread_args->thread_id + 1) * 34));
     auto start_time = std::chrono::high_resolution_clock::now();
 
     while (!found)
@@ -208,13 +211,19 @@ void *bruteforce_worker(void *args)
             double keys_per_second = counter / elapsed.count();
 
             // Imprime a quantidade de chaves verificadas a cada intervalo de refresh_time
-            std::cout << "Thread " << thread_args->thread_id << ": Last Key = " << generated_key 
-                      << " Speed: " << keys_per_second << " Keys/s\n";
+            // std::cout << "Thread " << thread_args->thread_id << ": Last Key = " << generated_key 
+            //           << " Speed: " << keys_per_second << " Keys/s\n";
 
+            global_counter += keys_per_second;
             // Reinicia o contador e o tempo
-            start_time = std::chrono::high_resolution_clock::now();
             counter = 0;
+            start_time = std::chrono::high_resolution_clock::now();
+            
+            if (thread_args->thread_id == 0){
+                    last_key = generated_key;
         }
+        }
+
     }
 
     return nullptr;
@@ -234,11 +243,21 @@ int main()
 
     for (int i = 0; i < num_processes; i++)
     {
-         thread_args[i].partial_key = partial_key;
+        thread_args[i].partial_key = partial_key;
         thread_args[i].thread_id = i;
         thread_args[i].refresh_time = refresh_time;
 
         pthread_create(&threads[i], nullptr, bruteforce_worker, &thread_args[i]);
+    }
+
+    auto start_time = std::chrono::high_resolution_clock::now();
+    
+    while (!found) {
+        std::this_thread::sleep_for(std::chrono::seconds(refresh_time));
+
+        std::cout << "\r" << global_counter << " Keys/s" << " Last Key Checked: " << last_key << std::flush;
+        global_counter = 0;
+
     }
 
     // Aguarda todas as threads finalizarem
