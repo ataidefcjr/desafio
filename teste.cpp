@@ -40,11 +40,11 @@ double global_counter = 0;
 std::string last_key;
 
 // Threads Args
-struct ThreadArgs
+typedef struct
 {
     int thread_id;
     int refresh_time;
-};
+} ThreadArgs;
 
 // Input Verifications
 int get_valid_input(const char *prompt, int default_value, int is_int)
