@@ -6,6 +6,7 @@
 #include <string.h>
 #include <vector>
 #include <pthread.h>
+#include <unistd.h>
 #include <thread>
 #include <time.h>
 #include <random>
@@ -35,6 +36,7 @@ bool success = decodeBase58(target_address, decoded_target_address);
 
 volatile int found = 0;
 pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t counter_lock; 
 
 double global_counter = 0;
 std::string last_key;
@@ -188,7 +190,6 @@ void *bruteforce_worker(void *args)
     int counter = 0;
     
     std::this_thread::sleep_for(std::chrono::milliseconds((thread_args->thread_id + 1) * 34));
-    auto start_time = std::chrono::high_resolution_clock::now();
 
     while (!found)
     { // Continue enquanto nenhuma thread encontrar a chave
@@ -213,18 +214,11 @@ void *bruteforce_worker(void *args)
         }
         counter ++;
 
-        // Verifica o tempo decorrido
-        auto current_time = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsed = current_time - start_time;
-
-        if (elapsed.count() >= thread_args->refresh_time) {
-
-            double keys_per_second = counter / elapsed.count();
-
-            global_counter += keys_per_second;
-            // Reinicia o contador e o tempo
+        if (counter > 1024 + ((thread_args->thread_id +1 ) * 37)) {
+            pthread_mutex_lock(&counter_lock);
+            global_counter += counter;
             counter = 0;
-            start_time = std::chrono::high_resolution_clock::now();
+            pthread_mutex_unlock(&counter_lock);
             
             if (thread_args->thread_id == 0){
                     last_key = generated_key;
@@ -241,13 +235,22 @@ int main()
     try{
 
         int refresh_time = get_valid_input("Taxa de atualização (em segundos): ", 1, 1);
-        int num_processes = get_valid_input("Quantidade de Threads (Padrão 12): ", 12, 1);
+        int num_threads = get_valid_input("Quantidade de Threads (Padrão 2): ", 2, 1);
+        int num_processes = get_valid_input("Quantidade de Processos (Padrão 12): ", 12, 1);
+
+        pid_t pid;
+        for (int i=1; i < num_processes; i++){
+            pid = fork();
+            if (pid == 0){
+                break;
+            }
+ 
+        }
 
         // Configura as threads
-        pthread_t threads[num_processes];
-        ThreadArgs thread_args[num_processes];
-
-        for (int i = 0; i < num_processes; i++)
+        pthread_t threads[num_threads];
+        ThreadArgs thread_args[num_threads];
+        for (int i = 0; i < num_threads; i++)
         {
             thread_args[i].thread_id = i;
             thread_args[i].refresh_time = refresh_time;
@@ -258,13 +261,20 @@ int main()
         auto start_time = std::chrono::high_resolution_clock::now();
         
         while (!found) {
-            std::cout << "\r" << global_counter << " Keys/s" << " Last Key Checked: " << last_key << "    " << std::flush;
+            
+            auto current_time = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> elapsed = current_time - start_time;
+
+            double keys_per_second = global_counter / elapsed.count();
+
+            std::cout << keys_per_second << " Keys/s" << " Last Key Checked: " << last_key << "        " << std::endl;
             global_counter = 0;
+            start_time = std::chrono::high_resolution_clock::now();
             std::this_thread::sleep_for(std::chrono::seconds(refresh_time));
         }
 
         // Aguarda todas as threads finalizarem
-        for (int i = 0; i < num_processes; i++)
+        for (int i = 0; i < num_threads; i++)
         {
             pthread_join(threads[i], nullptr);
         }
