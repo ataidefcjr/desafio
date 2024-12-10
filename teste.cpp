@@ -64,7 +64,6 @@ int get_valid_input(const char *prompt, int default_value, int is_int)
 
 // Função para gerar as chaves
 void generate_random_key(std::string &output_key) {
-    static const std::string hex_chars = "0123456789abcdef"; // Conjunto de caracteres hexadecimais
     static std::random_device rd; // Dispositivo para gerar números aleatórios
     static std::mt19937 gen(rd()); // Gerador de números aleatórios Mersenne Twister
     static std::uniform_int_distribution<> dis(0, 15); // Distribuição uniforme para números de 0 a 15
@@ -259,7 +258,7 @@ int main()
         auto start_time = std::chrono::high_resolution_clock::now();
         
         while (!found) {
-            std::cout << "\r" << global_counter << " Keys/s" << " Last Key Checked: " << last_key << std::flush;
+            std::cout << "\r" << global_counter << " Keys/s" << " Last Key Checked: " << last_key << "    " << std::flush;
             global_counter = 0;
             std::this_thread::sleep_for(std::chrono::seconds(refresh_time));
         }
