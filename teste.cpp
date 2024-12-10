@@ -6,6 +6,7 @@
 #include <string.h>
 #include <vector>
 #include <pthread.h>
+#include <thread>
 #include <time.h>
 #include <string>
 #include <cstdlib>
@@ -13,13 +14,14 @@
 #include <iostream>
 #include <openssl/sha.h>
 #include <openssl/ripemd.h>
+#include <chrono>
 #include "base58.cpp"
 #include "base58.h"
 
 // Global Variables
 const char *hex_chars = "0123456789abcdef";
-// char target_address[34] = "1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC";
-char target_address[35] = "13DiRx5F1b1J8QWKATyLJZSAepKw1PkRbF"; //Test address
+char target_address[34] = "1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC";
+// char target_address[35] = "13DiRx5F1b1J8QWKATyLJZSAepKw1PkRbF"; //Test address
 volatile int found = 0;
 pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -170,6 +172,9 @@ void *bruteforce_worker(void *args)
     ThreadArgs *thread_args = (ThreadArgs *)args;
     char generated_key[65]; // Para armazenar a chave gerada
     int counter = 0;
+    
+    std::this_thread::sleep_for(std::chrono::milliseconds((thread_args->thread_id + 1) * 28));
+    auto start_time = std::chrono::high_resolution_clock::now();
 
     while (!found)
     { // Continue enquanto nenhuma thread encontrar a chave
@@ -193,9 +198,22 @@ void *bruteforce_worker(void *args)
             break; // Sai do loop
         }
         counter ++;
-        if (counter % 1000000 == 0)
-        {
-            std::cout << "Last Key: " << generated_key << "\n" << counter << " Keys Checked\n";
+
+        // Verifica o tempo decorrido
+        auto current_time = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed = current_time - start_time;
+
+        if (elapsed.count() >= thread_args->refresh_time) {
+
+            double keys_per_second = counter / elapsed.count();
+
+            // Imprime a quantidade de chaves verificadas a cada intervalo de refresh_time
+            std::cout << "Thread " << thread_args->thread_id << ": Last Key = " << generated_key 
+                      << " Speed: " << keys_per_second << " Keys/s\n";
+
+            // Reinicia o contador e o tempo
+            start_time = std::chrono::high_resolution_clock::now();
+            counter = 0;
         }
     }
 
@@ -204,8 +222,8 @@ void *bruteforce_worker(void *args)
 
 int main()
 {
-    // std::string partial_key = "403b3x4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x";
-    std::string partial_key = "3991xb084d812356x128xa06a4192587b7xa984fd08dbx31af8e9d4e70810ab2"; // Teste Key
+    std::string partial_key = "403b3x4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x";
+    // std::string partial_key = "3991xb084d812356x128xa06a4192587b7xa984fd08dbx31af8e9d4e70810ab2"; // Teste Key
 
     int refresh_time = get_valid_input("Taxa de atualização (em segundos): ", 1, 1);
     int num_processes = get_valid_input("Quantidade de Threads (Padrão 12): ", 12, 1);
