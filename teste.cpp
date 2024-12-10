@@ -21,15 +21,15 @@
 #include "base58.h"
 
 // Global Variables
-const char *hex_chars = "0123456789abcdef";
+std::string const hex_chars = "0123456789abcdef";
 
 
 // char target_address[35] = "13DiRx5F1b1J8QWKATyLJZSAepKw1PkRbF"; //Test address
-// std::string partial_key = "3x91xb084d812356x128xa06a4192587b7xa984fd08dbx31af8e9d4e70810ab2"; // Teste Key
+// std::string const partial_key = "xxxxdb084d812356c128ba06a4192587b75a984fd08dbe31af8e9d4e70810ab2"; // Teste Key
 
 
 char target_address[34] = "1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC";
-std::string partial_key = "403b3x4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x";
+std::string const partial_key = "403b3x4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x";
 
 std::vector<unsigned char> decoded_target_address;
 bool success = decodeBase58(target_address, decoded_target_address);
@@ -66,16 +66,12 @@ int get_valid_input(const char *prompt, int default_value, int is_int)
 
 // Função para gerar as chaves
 void generate_random_key(std::string &output_key) {
-    static std::random_device rd; // Dispositivo para gerar números aleatórios
-    static std::mt19937 gen(rd()); // Gerador de números aleatórios Mersenne Twister
-    static std::uniform_int_distribution<> dis(0, 15); // Distribuição uniforme para números de 0 a 15
+    
+    static std::mt19937 gen(140695); // Gerador de números aleatórios Mersenne Twister
 
-    int len = partial_key.length();
-
-    output_key.resize(len); // Redimensiona o vetor de saída para o tamanho necessário
-    for (int i = 0; i < len; i++) {
+    for (int i = 0; i < 64; i++) {
         if (partial_key[i] == 'x') {
-            output_key[i] = hex_chars[dis(gen)]; // Substitui 'x' por um caractere aleatório
+            output_key[i] = hex_chars[(gen() % 16)]; // Substitui 'x' por um caractere aleatório
         } else {
             output_key[i] = partial_key[i]; // Mantém os caracteres que não são 'x'
         }
@@ -158,38 +154,32 @@ std::vector<uint8_t> privateKeyToBitcoinAddress(const std::vector<uint8_t> &priv
 // Função de comparação entre o endereço gerado e o alvo
 int check_key(std::string private_key)
 {
-    try
-    {
-        // Converte a chave privada de hexadecimal para bytes
-        std::vector<uint8_t> privateKeyBytes = hexToBytes(private_key);
 
-        // Verifica se a chave privada tem 32 bytes
-        if (privateKeyBytes.size() != 32)
-        {
-            std::cerr << "A chave privada não tem 32 bytes!" << std::endl;
-            return 0;
-        }
+    // Converte a chave privada de hexadecimal para bytes
+    std::vector<uint8_t> privateKeyBytes = hexToBytes(private_key);
 
-        // Gera o endereço Bitcoin a partir da chave privada
-        std::vector<uint8_t> generated_address = privateKeyToBitcoinAddress(privateKeyBytes);
+    // // Verifica se a chave privada tem 32 bytes
+    // if (privateKeyBytes.size() != 32)
+    // {
+    //     std::cerr << "A chave privada não tem 32 bytes!" << std::endl;
+    //     return 0;
+    // }
 
-        return (generated_address == decoded_target_address);
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Erro ao verificar chave: " << e.what() << std::endl;
-        return 0;
-    }
+    // Gera o endereço Bitcoin a partir da chave privada
+    std::vector<uint8_t> generated_address = privateKeyToBitcoinAddress(privateKeyBytes);
+
+    return (generated_address == decoded_target_address);
+
 }
 
 // Worker
 void *bruteforce_worker(void *args)
 {
     ThreadArgs *thread_args = (ThreadArgs *)args;
-    std::string generated_key; // Para armazenar a chave gerada
+    std::string generated_key(64,' '); // Para armazenar a chave gerada
     int counter = 0;
     
-    std::this_thread::sleep_for(std::chrono::milliseconds((thread_args->thread_id + 1) * 34));
+    std::this_thread::sleep_for(std::chrono::milliseconds((thread_args->thread_id + 1) * 37));
 
     while (!found)
     { // Continue enquanto nenhuma thread encontrar a chave
@@ -235,20 +225,20 @@ int main()
     try{
 
         int refresh_time = get_valid_input("Taxa de atualização (em segundos): ", 1, 1);
-        int num_threads = get_valid_input("Quantidade de Threads (Padrão 2): ", 2, 1);
-        int num_processes = get_valid_input("Quantidade de Processos (Padrão 12): ", 12, 1);
+        int num_threads = get_valid_input("Quantidade de Threads (Padrão 6): ", 6, 1);
+        int num_processes = 1; // get_valid_input("Quantidade de Processos (Padrão 12): ", 12, 1);
 
-        pid_t pid;
-        for (int i=1; i < num_processes; i++){
-            pid = fork();
-            if (pid == 0){
-                break;
-            }
+        // pid_t pid;
+        // for (int i=1; i < num_processes; i++){
+        //     pid = fork();
+        //     if (pid == 0){
+        //         break;
+        //     }
  
-        }
+        // }
 
         // Configura as threads
-        pthread_t threads[num_threads];
+        pthread_t threads[num_threads]; 
         ThreadArgs thread_args[num_threads];
         for (int i = 0; i < num_threads; i++)
         {
