@@ -1,3 +1,6 @@
+// Compile With  
+// g++ -o teste teste.cpp -lssl -lcrypto -lsecp256k1          
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
