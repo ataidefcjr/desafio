@@ -20,8 +20,19 @@
 
 // Global Variables
 const char *hex_chars = "0123456789abcdef";
-char target_address[34] = "1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC";
-// char target_address[35] = "13DiRx5F1b1J8QWKATyLJZSAepKw1PkRbF"; //Test address
+
+
+
+char target_address[35] = "13DiRx5F1b1J8QWKATyLJZSAepKw1PkRbF"; //Test address
+std::string partial_key = "3991xb084d812356x128xa06a4192587b7xa984fd08dbx31af8e9d4e70810ab2"; // Teste Key
+
+// char target_address[34] = "1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC";
+// std::string partial_key = "403b3x4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x";
+
+
+std::vector<unsigned char> decoded_target_address;
+bool success = decodeBase58(target_address, decoded_target_address);
+
 volatile int found = 0;
 pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -31,7 +42,6 @@ std::string last_key;
 // Threads Args
 typedef struct
 {
-    std::string partial_key;
     int thread_id;
     int refresh_time;
 } ThreadArgs;
@@ -53,7 +63,7 @@ int get_valid_input(const char *prompt, int default_value, int is_int)
 }
 
 // Função para gerar as chaves
-void generate_random_key(const std::string &partial_key, char *output_key) {
+void generate_random_key(char *output_key) {
     strcpy(output_key, partial_key.c_str()); // Converte std::string para char*
     int len = partial_key.length();
 
@@ -102,7 +112,7 @@ std::vector<uint8_t> hexToBytes(const std::string &hex)
 
 
 // Função principal para converter uma chave privada em endereço Bitcoin
-std::string privateKeyToBitcoinAddress(const std::vector<uint8_t> &privateKey)
+std::vector<uint8_t> privateKeyToBitcoinAddress(const std::vector<uint8_t> &privateKey)
 {
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
 
@@ -135,12 +145,11 @@ std::string privateKeyToBitcoinAddress(const std::vector<uint8_t> &privateKey)
     // Concatenar o hash prefixado com o checksum
     prefixedHash.insert(prefixedHash.end(), checksum.begin(), checksum.end());
 
-    // Codificar em Base58
-    return encodeBase58(prefixedHash);
+    return prefixedHash;
 }
 
 // Função de comparação entre o endereço gerado e o alvo
-int check_key(const char *private_key, const char *target_address)
+int check_key(const char *private_key)
 {
     try
     {
@@ -155,12 +164,9 @@ int check_key(const char *private_key, const char *target_address)
         }
 
         // Gera o endereço Bitcoin a partir da chave privada
-        std::string generated_address = privateKeyToBitcoinAddress(privateKeyBytes);
+        std::vector<uint8_t> generated_address = privateKeyToBitcoinAddress(privateKeyBytes);
 
-        // std::cout << "Generated Address = " << generated_address << std::endl;
-        // std::cout << "Target Address = " << target_address << std::endl;
-
-        return (generated_address == target_address);
+        return (generated_address == decoded_target_address);
     }
     catch (const std::exception &e)
     {
@@ -181,14 +187,14 @@ void *bruteforce_worker(void *args)
 
     while (!found)
     { // Continue enquanto nenhuma thread encontrar a chave
-        generate_random_key(thread_args->partial_key, generated_key);
-        if (check_key(generated_key, target_address))
+        generate_random_key(generated_key);
+        if (check_key(generated_key))
         {
             found = 1; // Sinaliza que a chave foi encontrada
 
             // Protege a escrita no arquivo com o mutex
             pthread_mutex_lock(&file_lock);
-            printf("Thread %d encontrou a chave: %s\n", thread_args->thread_id, generated_key);
+            printf("\nThread %d encontrou a chave: %s\n", thread_args->thread_id, generated_key);
 
             FILE *file = fopen("key.txt", "w");
             if (file != NULL)
@@ -231,8 +237,6 @@ void *bruteforce_worker(void *args)
 
 int main()
 {
-    std::string partial_key = "403b3x4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x";
-    // std::string partial_key = "3991xb084d812356x128xa06a4192587b7xa984fd08dbx31af8e9d4e70810ab2"; // Teste Key
 
     int refresh_time = get_valid_input("Taxa de atualização (em segundos): ", 1, 1);
     int num_processes = get_valid_input("Quantidade de Threads (Padrão 12): ", 12, 1);
@@ -243,7 +247,6 @@ int main()
 
     for (int i = 0; i < num_processes; i++)
     {
-        thread_args[i].partial_key = partial_key;
         thread_args[i].thread_id = i;
         thread_args[i].refresh_time = refresh_time;
 
