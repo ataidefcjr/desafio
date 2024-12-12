@@ -1,0 +1,17 @@
+4x3x3x4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x
+1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC
+
+## A primeira linha é a chave parcial e a segunda é o endereço ##
+
+## Chave de teste ## 
+
+399xxxx84d812356c128ba06a4192587b75a984fd08dbe31af8e9d4e70810ab2
+13DiRx5F1b1J8QWKATyLJZSAepKw1PkRbF
+
+--- o Resultado deve ser 3991db084d812356c128ba06a4192587b75a984fd08dbe31af8e9d4e70810ab2 ---
+
+
+## Chave do desafio ##
+
+4x3x3x4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x
+1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC
