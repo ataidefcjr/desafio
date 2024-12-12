@@ -4,30 +4,51 @@ CXX = g++
 # Bibliotecas
 LIBS = -lssl -lcrypto -lsecp256k1
 
+# Flags de CPU avançadas
+CPU_FLAGS = \
+    -march=native \
+    -mtune=native \
+    -msha \
+    -msse4.2 \
+    -maes \
+    # -mavx \
+    # -mavx2 \
+    # -mbmi2 \
+    # -mpclmul \
+    # -mpopcnt \
+    # -madx \
+    # -mrdrnd \
+    # -mabm
+
 # Flags de otimização específicas para criptografia
 CRYPTO_FLAGS = \
     -O3 \
-    -march=native \
-    -maes \
-    -msse4.2 \
-    -mavx2
+    # -fno-plt \
+    # -fprefetch-loop-arrays \
+    # -funroll-all-loops \
+    # -fpeel-loops \
+    # -ftracer
 
 # Flags de performance para operações matemáticas e memória
 PERFORMANCE_FLAGS = \
     -ffast-math \
     -funroll-loops \
     -fomit-frame-pointer \
-    -fmerge-all-constants \
-    -fno-schedule-insns \
-    -ftree-vectorize \
-    -fno-trapping-math \
-    -pipe
+    # -ftree-vectorize \
+    # -fmerge-all-constants \
+    # -fno-schedule-insns \
+    # -fno-trapping-math \
+    # -finline-functions \
+    # -freorder-blocks-algorithm=stc \
+    # -fcaller-saves \
+    # -fcode-hoisting \
+    # -pipe
 
 # Link Time Optimization
 LTO_FLAGS = -flto=auto -fuse-linker-plugin
 
 # Combinação de todas as flags
-CXXFLAGS = $(CRYPTO_FLAGS) $(PERFORMANCE_FLAGS) $(LTO_FLAGS)
+CXXFLAGS = $(CPU_FLAGS) $(CRYPTO_FLAGS) $(PERFORMANCE_FLAGS) $(LTO_FLAGS)
 
 # Arquivos fonte e destino
 TARGET = teste

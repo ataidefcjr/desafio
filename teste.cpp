@@ -11,26 +11,21 @@
 #include <openssl/ripemd.h>
 #include <chrono>
 #include "base58.cpp"
+#include <fstream>
 #include "base58.h"
 
 int batch_size = 2048;
 int refresh_time = 3;
-int num_threads =  12; // get_valid_input("Quantidade de Threads (Padrão 6): ", 6, 1);
-int num_processes = 1 ; //get_valid_input("Quantidade de Processos (Padrão 2): ", 2, 1);
+int num_threads = 2; // get_valid_input("Quantidade de Threads (Padrão 6): ", 6, 1);
+int num_processes; //get_valid_input("Quantidade de Processos (Padrão 2): ", 2, 1);
 
 // Global Variables
 std::string const hex_chars = "0123456789abcdef";
 
-
-// char target_address[35] = "13DiRx5F1b1J8QWKATyLJZSAepKw1PkRbF"; //Test address
-// std::string const partial_key = "3xxxxxx84d812356c128ba06a4192587b75a984fd08dbe31af8e9d4e70810ab2"; // Teste Key
-
-
-char target_address[34] = "1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC";
-std::string const partial_key = "403b3d4fcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x";
+std::string partial_key;
+std::string target_address;
 
 std::vector<unsigned char> decoded_target_address;
-bool success = decodeBase58(target_address, decoded_target_address);
 
 volatile int found = 0;
 pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -47,6 +42,31 @@ typedef struct
     int refresh_time;
     int batch_size;
 } ThreadArgs;
+
+struct KeyConfig {
+    std::string partial_key;
+    std::string target_address;
+};
+
+KeyConfig readConfigFromFile(const std::string &filename) {
+    std::ifstream file(filename);
+    KeyConfig config;
+    
+    if (file.is_open()) {
+        std::getline(file, config.partial_key);
+        std::getline(file, config.target_address);
+        file.close();
+    } else {
+        throw std::runtime_error("Não foi possível abrir o arquivo " + filename);
+    }
+    
+    if (config.partial_key.empty() || config.target_address.empty()) {
+        throw std::runtime_error("Arquivo de configuração incompleto");
+    }
+    
+    return config;
+}
+
 
 // Input Verifications
 int get_valid_input(const char *prompt, int default_value, int is_int)
@@ -190,9 +210,9 @@ void *bruteforce_worker(void *args)
             found = 1; // Sinaliza que a chave foi encontrada
             
             // Protege a escrita no arquivo com o mutex
-            pthread_mutex_lock(&file_lock);
             printf("\nThread %d encontrou a chave: %s\n", thread_args->thread_id, generated_key[position].c_str());
 
+            pthread_mutex_lock(&file_lock);
             FILE *file = fopen("key.txt", "w");
             if (file != NULL)
             {
@@ -214,34 +234,23 @@ void *bruteforce_worker(void *args)
     return nullptr;
 }
 
-// int test() {
-//     auto start_time = std::chrono::high_resolution_clock::now();
-//     int testcount = 0;
-//     for (int i=0; i<500000; i++){
-//         std::string generated_key(64,' ');
-//         generate_random_key(generated_key);
-//         check_key(generated_key);
-//         testcount ++;
-//     }
-//     auto current_time = std::chrono::high_resolution_clock::now();
-
-//     std::chrono::duration<double> elapsed = current_time - start_time;
-//     double keys_per_second = testcount / elapsed.count();
-
-//     std::cout << "Keys Generated per Second: " << keys_per_second << std::endl;
-//     return 0;
-// }
 
 int main()
 {
     try{
-
-        // test();
-        // return 1;
-
-        // num_threads = get_valid_input("Quantidade de Threads (Padrão 6): ", 6, 1);
-        // num_processes = get_valid_input("Quantidade de Processos (Padrão 2): ", 2, 1);
+        if (!num_threads) {
+        num_threads = get_valid_input("Quantidade de Threads (Padrão 6): ", 6, 1);
+        }
+        if(!num_processes){
+        num_processes = get_valid_input("Quantidade de Processos: ", 12, 1);
+        }
             
+        KeyConfig config = readConfigFromFile("partialkey.txt");
+        partial_key = config.partial_key;
+        target_address = config.target_address;
+
+        bool success = decodeBase58(target_address, decoded_target_address);
+        
         icounter.resize(num_threads);
 
         pid_t pid;
@@ -268,6 +277,10 @@ int main()
         auto start_time = std::chrono::high_resolution_clock::now();
 
         if ( pid != 0 || num_processes == 1){
+
+            std::cout << "Address: " << target_address << std::endl;
+            std::cout << "Partial Key: " << partial_key << std::endl;
+
             while (!found) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(refresh_time * 500));
 
