@@ -3,17 +3,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <vector>
-#include <pthread.h>
 #include <unistd.h>
-#include <array>
 #include <csignal>
 #include <thread>
-#include <time.h>
 #include <random>
-#include <string>
-#include <cstdlib>
 #include <secp256k1.h>
 #include <iostream>
 #include <openssl/sha.h>
@@ -27,11 +21,12 @@ std::string const hex_chars = "0123456789abcdef";
 
 
 // char target_address[35] = "13DiRx5F1b1J8QWKATyLJZSAepKw1PkRbF"; //Test address
-// std::string const partial_key = "xxxxxb084d812356c128ba06a4192587b75a984fd08dbe31af8e9d4e70810ab2"; // Teste Key
+// std::string const partial_key = "xxxxxx084d812356c128ba06a4192587b75a984fd08dbe31af8e9d4e70810ab2"; // Teste Key
 
 
 char target_address[34] = "1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC";
-std::string const partial_key = "403b3x4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x";
+std::string const partial_key = "403b3d4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x";
+
 
 std::vector<unsigned char> decoded_target_address;
 bool success = decodeBase58(target_address, decoded_target_address);
@@ -49,6 +44,7 @@ typedef struct
 {
     int thread_id;
     int refresh_time;
+    int batch_size;
 } ThreadArgs;
 
 // Input Verifications
@@ -68,15 +64,19 @@ int get_valid_input(const char *prompt, int default_value, int is_int)
 }
 
 // Função para gerar as chaves
-void generate_random_key(std::string &output_key) {
+void generate_random_key(std::vector<std::string> &output_key) {
     static std::random_device rd;
     static std::mt19937 gen(rd()+140695); // Gerador de números aleatórios Mersenne Twister
 
-    for (int i = 0; i < 64; i++) {
-        if (partial_key[i] == 'x') {
-            output_key[i] = hex_chars[(gen() % 16)]; // Substitui 'x' por um caractere aleatório
-        } else {
-            output_key[i] = partial_key[i]; // Mantém os caracteres que não são 'x'
+    for(int position=0; position<output_key.size(); position++){
+        // output_key[position].resize(64);
+
+        for (int i = 0; i < 64; i++) {
+            if (partial_key[i] == 'x') {
+                output_key[position][i] = hex_chars[(gen() % 16)]; // Substitui 'x' por um caractere aleatório
+            } else {
+                output_key[position][i] = partial_key[i]; // Mantém os caracteres que não são 'x'
+            }
         }
     }
 }
@@ -118,60 +118,64 @@ std::vector<uint8_t> hexToBytes(const std::string &hex)
 
 
 // Função principal para converter uma chave privada em endereço Bitcoin
-std::vector<uint8_t> privateKeyToBitcoinAddress(const std::vector<uint8_t> &privateKey)
+void privateKeyToBitcoinAddress(std::vector<std::vector<uint8_t>> &generated_addresses, std::vector<std::string> &generated_keys)
 {
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
+    for (int i=0; i < generated_keys.size(); i++){
+        std::vector<uint8_t> privateKeyBytes = hexToBytes(generated_keys[i]);
 
-    // Gerar a chave pública
-    secp256k1_pubkey pubkey;
-    if (!secp256k1_ec_pubkey_create(ctx, &pubkey, privateKey.data()))
-    {
-        throw std::runtime_error("Erro ao gerar chave pública.");
+        secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
+
+        // Gerar a chave pública
+        secp256k1_pubkey pubkey;
+        if (!secp256k1_ec_pubkey_create(ctx, &pubkey, privateKeyBytes.data()))
+        {
+            throw std::runtime_error("Erro ao gerar chave pública.");
+        }
+
+        // Serializar a chave pública em formato comprimido
+        std::vector<uint8_t> publicKey(33);
+        size_t publicKeyLen = publicKey.size();
+        secp256k1_ec_pubkey_serialize(ctx, publicKey.data(), &publicKeyLen, &pubkey, SECP256K1_EC_COMPRESSED);
+
+        secp256k1_context_destroy(ctx);
+
+        // Aplicar SHA-256 e RIPEMD-160 na chave pública
+        std::vector<uint8_t> sha256Hash = sha256(publicKey);
+        std::vector<uint8_t> ripemd160Hash = ripemd160(sha256Hash);
+
+        // Adicionar o prefixo de rede (0x00 para Bitcoin mainnet)
+        std::vector<uint8_t> prefixedHash = {0x00};
+        prefixedHash.insert(prefixedHash.end(), ripemd160Hash.begin(), ripemd160Hash.end());
+
+        // Calcular o checksum
+        std::vector<uint8_t> checksumInput = sha256(sha256(prefixedHash));
+        std::vector<uint8_t> checksum(checksumInput.begin(), checksumInput.begin() + 4);
+
+        // Concatenar o hash prefixado com o checksum
+        prefixedHash.insert(prefixedHash.end(), checksum.begin(), checksum.end());
+
+        generated_addresses.push_back(prefixedHash);
     }
-
-    // Serializar a chave pública em formato comprimido
-    std::vector<uint8_t> publicKey(33);
-    size_t publicKeyLen = publicKey.size();
-    secp256k1_ec_pubkey_serialize(ctx, publicKey.data(), &publicKeyLen, &pubkey, SECP256K1_EC_COMPRESSED);
-
-    secp256k1_context_destroy(ctx);
-
-    // Aplicar SHA-256 e RIPEMD-160 na chave pública
-    std::vector<uint8_t> sha256Hash = sha256(publicKey);
-    std::vector<uint8_t> ripemd160Hash = ripemd160(sha256Hash);
-
-    // Adicionar o prefixo de rede (0x00 para Bitcoin mainnet)
-    std::vector<uint8_t> prefixedHash = {0x00};
-    prefixedHash.insert(prefixedHash.end(), ripemd160Hash.begin(), ripemd160Hash.end());
-
-    // Calcular o checksum
-    std::vector<uint8_t> checksumInput = sha256(sha256(prefixedHash));
-    std::vector<uint8_t> checksum(checksumInput.begin(), checksumInput.begin() + 4);
-
-    // Concatenar o hash prefixado com o checksum
-    prefixedHash.insert(prefixedHash.end(), checksum.begin(), checksum.end());
-
-    return prefixedHash;
 }
 
 // Função de comparação entre o endereço gerado e o alvo
-int check_key(std::string private_key)
+int check_key(std::vector<std::string> &generated_keys)
 {
 
+    std::vector<std::vector<uint8_t>> generated_addresses;
+    privateKeyToBitcoinAddress(generated_addresses, generated_keys);
     // Converte a chave privada de hexadecimal para bytes
-    std::vector<uint8_t> privateKeyBytes = hexToBytes(private_key);
 
-    // // Verifica se a chave privada tem 32 bytes
-    // if (privateKeyBytes.size() != 32)
-    // {
-    //     std::cerr << "A chave privada não tem 32 bytes!" << std::endl;
-    //     return 0;
-    // }
+    
+    for (int i=0; i < generated_keys.size(); i++) {
+        
+        if (generated_addresses[i] == decoded_target_address){
+            return i;
+        };
 
-    // Gera o endereço Bitcoin a partir da chave privada
-    std::vector<uint8_t> generated_address = privateKeyToBitcoinAddress(privateKeyBytes);
+    }
 
-    return (generated_address == decoded_target_address);
+    return 0;
 
 }
 
@@ -179,65 +183,58 @@ int check_key(std::string private_key)
 void *bruteforce_worker(void *args)
 {
     ThreadArgs *thread_args = (ThreadArgs *)args;
-    std::string generated_key(64,' '); // Para armazenar a chave gerada
-    unsigned int counter = 0;
+
+    std::vector<std::string> generated_key(thread_args->batch_size, std::string(64, ' '));
     
     std::this_thread::sleep_for(std::chrono::milliseconds((thread_args->thread_id + 1) * 37));
 
     while (!found)
     { // Continue enquanto nenhuma thread encontrar a chave
         generate_random_key(generated_key);
-        if (check_key(generated_key))
+        if (int position = check_key(generated_key))
         {
             found = 1; // Sinaliza que a chave foi encontrada
             
             // Protege a escrita no arquivo com o mutex
             pthread_mutex_lock(&file_lock);
-            printf("\nThread %d encontrou a chave: %s\n", thread_args->thread_id, generated_key.c_str());
+            printf("\nThread %d encontrou a chave: %s\n", thread_args->thread_id, generated_key[position].c_str());
 
             FILE *file = fopen("key.txt", "w");
             if (file != NULL)
             {
-                fprintf(file, "Chave privada encontrada: %s\n", generated_key.c_str());
+                fprintf(file, "Chave privada encontrada: %s\n", generated_key[position].c_str());
                 fclose(file);
             }
             pthread_mutex_unlock(&file_lock);
             kill(0, SIGKILL);
             break; // Sai do loop
         }
-        counter ++;
 
-        if (counter >= 1024) {
-            icounter[thread_args->thread_id] += counter;
-            counter = 0;
-            
-            if (thread_args->thread_id == 0){
-                    last_key = generated_key;
-            }
-        }
+        icounter[thread_args->thread_id] += thread_args->batch_size;
+        last_key = generated_key[0];
 
     }
 
     return nullptr;
 }
 
-int test() {
-    auto start_time = std::chrono::high_resolution_clock::now();
-    int testcount = 0;
-    for (int i=0; i<500000; i++){
-        std::string generated_key(64,' ');
-        generate_random_key(generated_key);
-        check_key(generated_key);
-        testcount ++;
-    }
-    auto current_time = std::chrono::high_resolution_clock::now();
+// int test() {
+//     auto start_time = std::chrono::high_resolution_clock::now();
+//     int testcount = 0;
+//     for (int i=0; i<500000; i++){
+//         std::string generated_key(64,' ');
+//         generate_random_key(generated_key);
+//         check_key(generated_key);
+//         testcount ++;
+//     }
+//     auto current_time = std::chrono::high_resolution_clock::now();
 
-    std::chrono::duration<double> elapsed = current_time - start_time;
-    double keys_per_second = testcount / elapsed.count();
+//     std::chrono::duration<double> elapsed = current_time - start_time;
+//     double keys_per_second = testcount / elapsed.count();
 
-    std::cout << "Keys Generated per Second: " << keys_per_second << std::endl;
-    return 0;
-}
+//     std::cout << "Keys Generated per Second: " << keys_per_second << std::endl;
+//     return 0;
+// }
 
 int main()
 {
@@ -246,9 +243,10 @@ int main()
         // test();
         // return 1;
 
-        int refresh_time = get_valid_input("Taxa de atualização (em segundos): ", 1, 1);
+        int refresh_time = get_valid_input("Taxa de atualização (em segundos): ", 2, 1);
         int num_threads = get_valid_input("Quantidade de Threads (Padrão 6): ", 6, 1);
         int num_processes = get_valid_input("Quantidade de Processos (Padrão 2): ", 2, 1);
+        int batch_size = 4096; //get_valid_input("Tamanho do lote: ", 4096, 1);
             
         icounter.resize(num_threads);
 
@@ -268,6 +266,7 @@ int main()
         {
             thread_args[i].thread_id = i;
             thread_args[i].refresh_time = refresh_time;
+            thread_args[i].batch_size = batch_size;
 
             pthread_create(&threads[i], nullptr, bruteforce_worker, &thread_args[i]);
         }
