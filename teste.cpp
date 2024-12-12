@@ -16,17 +16,21 @@
 #include "base58.cpp"
 #include "base58.h"
 
+int batch_size = 1024;
+int refresh_time = 2;
+int num_threads = 12; //get_valid_input("Quantidade de Threads (Padrão 6): ", 6, 1);
+int num_processes = 1; //get_valid_input("Quantidade de Processos (Padrão 2): ", 2, 1);
+
 // Global Variables
 std::string const hex_chars = "0123456789abcdef";
 
 
-// char target_address[35] = "13DiRx5F1b1J8QWKATyLJZSAepKw1PkRbF"; //Test address
-// std::string const partial_key = "xxxxxx084d812356c128ba06a4192587b75a984fd08dbe31af8e9d4e70810ab2"; // Teste Key
+char target_address[35] = "13DiRx5F1b1J8QWKATyLJZSAepKw1PkRbF"; //Test address
+std::string const partial_key = "3xxxxxx84d812356c128ba06a4192587b75a984fd08dbe31af8e9d4e70810ab2"; // Teste Key
 
 
-char target_address[34] = "1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC";
-std::string const partial_key = "403b3d4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x";
-
+// char target_address[34] = "1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC";
+// std::string const partial_key = "403b3d4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x";
 
 std::vector<unsigned char> decoded_target_address;
 bool success = decodeBase58(target_address, decoded_target_address);
@@ -81,26 +85,20 @@ void generate_random_key(std::vector<std::string> &output_key) {
     }
 }
 
-// Função para calcular o SHA-256
-std::vector<uint8_t> sha256(const std::vector<uint8_t> &data)
-{
-    std::vector<uint8_t> hash(SHA256_DIGEST_LENGTH);
-    SHA256_CTX ctx;
+// Função para calcular o SHA-256 com contexto compartilhado
+void sha256(SHA256_CTX ctx, std::vector<uint8_t> &data, std::vector<uint8_t> &hash) {
     SHA256_Init(&ctx);
     SHA256_Update(&ctx, data.data(), data.size());
     SHA256_Final(hash.data(), &ctx);
-    return hash;
 }
 
-// Função para calcular o RIPEMD-160
-std::vector<uint8_t> ripemd160(const std::vector<uint8_t> &data)
+
+// Função para calcular o RIPEMD-160 com contexto compartilhado
+void ripemd160(RIPEMD160_CTX ctx, std::vector<uint8_t> &data, std::vector<uint8_t> &hash)
 {
-    std::vector<uint8_t> hash(RIPEMD160_DIGEST_LENGTH);
-    RIPEMD160_CTX ctx;
     RIPEMD160_Init(&ctx);
     RIPEMD160_Update(&ctx, data.data(), data.size());
     RIPEMD160_Final(hash.data(), &ctx);
-    return hash;
 }
 
 
@@ -116,71 +114,72 @@ std::vector<uint8_t> hexToBytes(const std::string &hex)
 }
 
 
-
 // Função principal para converter uma chave privada em endereço Bitcoin
 void privateKeyToBitcoinAddress(std::vector<std::vector<uint8_t>> &generated_addresses, std::vector<std::string> &generated_keys)
 {
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
 
-    // std::vector<uint8_t> publicKey(33);
-    // std::vector<uint8_t> sha256Buffer(32);
-    // std::vector<uint8_t> ripemd160Buffer(20);
-    // std::vector<uint8_t> prefixedHash(1 + 20 + 4);
+    std::vector<uint8_t> publicKey(33);
+    std::vector<uint8_t> sha256Buffer(32);
+    std::vector<uint8_t> ripemd160Buffer(20);
+    std::vector<uint8_t> prefixedHash(21);
+    std::vector<uint8_t> finalHash(25);
 
-    for (int i=0; i < generated_keys.size(); i++){
-        
+    RIPEMD160_CTX rctx;
+    SHA256_CTX sctx;
+
+
+    for (int i = 0; i < generated_keys.size(); i++) {
         std::vector<uint8_t> privateKeyBytes = hexToBytes(generated_keys[i]);
 
-        // Gerar a chave pública
         secp256k1_pubkey pubkey;
-        if (!secp256k1_ec_pubkey_create(ctx, &pubkey, privateKeyBytes.data()))
-        {
+        if (!secp256k1_ec_pubkey_create(ctx, &pubkey, privateKeyBytes.data())) {
             throw std::runtime_error("Erro ao gerar chave pública.");
         }
 
-        // Serializar a chave pública em formato comprimido
-        std::vector<uint8_t> publicKey(33);
         size_t publicKeyLen = publicKey.size();
         secp256k1_ec_pubkey_serialize(ctx, publicKey.data(), &publicKeyLen, &pubkey, SECP256K1_EC_COMPRESSED);
 
+        // SHA256 da chave pública
+        sha256(sctx, publicKey, sha256Buffer);
+        
+        // RIPEMD160 do resultado do SHA256
+        ripemd160(rctx, sha256Buffer, ripemd160Buffer);
 
-        // Aplicar SHA-256 e RIPEMD-160 na chave pública
-        std::vector<uint8_t> sha256Hash = sha256(publicKey);
-        std::vector<uint8_t> ripemd160Hash = ripemd160(sha256Hash);
+        // Adiciona prefixo de rede (0x00 para mainnet)
+        prefixedHash[0] = 0x00;
+        std::copy(ripemd160Buffer.begin(), ripemd160Buffer.end(), prefixedHash.begin() + 1);
 
-        // Adicionar o prefixo de rede (0x00 para Bitcoin mainnet)
-        std::vector<uint8_t> prefixedHash = {0x00};
-        prefixedHash.insert(prefixedHash.end(), ripemd160Hash.begin(), ripemd160Hash.end());
+        // Calcula o checksum (duplo SHA256 do prefixedHash)
+        sha256(sctx, prefixedHash, sha256Buffer);
+        sha256(sctx, sha256Buffer, sha256Buffer);
 
-        // Calcular o checksum
-        std::vector<uint8_t> checksumInput = sha256(sha256(prefixedHash));
-        std::vector<uint8_t> checksum(checksumInput.begin(), checksumInput.begin() + 4);
+        // Monta o endereço final (versão + hash + checksum)
+        std::copy(prefixedHash.begin(), prefixedHash.end(), finalHash.begin());
+        std::copy(sha256Buffer.begin(), sha256Buffer.begin() + 4, finalHash.begin() + 21);
 
-        // Concatenar o hash prefixado com o checksum
-        prefixedHash.insert(prefixedHash.end(), checksum.begin(), checksum.end());
-
-        generated_addresses[i] = prefixedHash;
+        generated_addresses[i] = finalHash;
     }
     secp256k1_context_destroy(ctx);
-
 }
 
 // Função de comparação entre o endereço gerado e o alvo
 int check_key(std::vector<std::string> &generated_keys, int thread_id)
 {
 
-    std::vector<std::vector<uint8_t>> generated_addresses(generated_keys.size());
+    std::vector<std::vector<uint8_t>> generated_addresses(batch_size);
     privateKeyToBitcoinAddress(generated_addresses, generated_keys);
     // Converte a chave privada de hexadecimal para bytes
 
     
-    for (int i=0; i < generated_keys.size(); i++) {
+    for (int i=0; i < batch_size; i++) {
         
         if (generated_addresses[i] == decoded_target_address){
             return i;
         };
-        icounter[thread_id] ++;
     }
+    
+    icounter[thread_id] += batch_size;
 
     return 0;
 
@@ -252,10 +251,7 @@ int main()
         // test();
         // return 1;
 
-        int refresh_time = get_valid_input("Taxa de atualização (em segundos): ", 2, 1);
-        int num_threads = get_valid_input("Quantidade de Threads (Padrão 6): ", 6, 1);
-        int num_processes = get_valid_input("Quantidade de Processos (Padrão 2): ", 2, 1);
-        int batch_size = 512; //get_valid_input("Tamanho do lote: ", 4096, 1);
+
             
         icounter.resize(num_threads);
 
