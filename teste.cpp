@@ -120,10 +120,16 @@ std::vector<uint8_t> hexToBytes(const std::string &hex)
 // Função principal para converter uma chave privada em endereço Bitcoin
 void privateKeyToBitcoinAddress(std::vector<std::vector<uint8_t>> &generated_addresses, std::vector<std::string> &generated_keys)
 {
-    for (int i=0; i < generated_keys.size(); i++){
-        std::vector<uint8_t> privateKeyBytes = hexToBytes(generated_keys[i]);
+    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
 
-        secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
+    // std::vector<uint8_t> publicKey(33);
+    // std::vector<uint8_t> sha256Buffer(32);
+    // std::vector<uint8_t> ripemd160Buffer(20);
+    // std::vector<uint8_t> prefixedHash(1 + 20 + 4);
+
+    for (int i=0; i < generated_keys.size(); i++){
+        
+        std::vector<uint8_t> privateKeyBytes = hexToBytes(generated_keys[i]);
 
         // Gerar a chave pública
         secp256k1_pubkey pubkey;
@@ -137,7 +143,6 @@ void privateKeyToBitcoinAddress(std::vector<std::vector<uint8_t>> &generated_add
         size_t publicKeyLen = publicKey.size();
         secp256k1_ec_pubkey_serialize(ctx, publicKey.data(), &publicKeyLen, &pubkey, SECP256K1_EC_COMPRESSED);
 
-        secp256k1_context_destroy(ctx);
 
         // Aplicar SHA-256 e RIPEMD-160 na chave pública
         std::vector<uint8_t> sha256Hash = sha256(publicKey);
@@ -154,15 +159,17 @@ void privateKeyToBitcoinAddress(std::vector<std::vector<uint8_t>> &generated_add
         // Concatenar o hash prefixado com o checksum
         prefixedHash.insert(prefixedHash.end(), checksum.begin(), checksum.end());
 
-        generated_addresses.push_back(prefixedHash);
+        generated_addresses[i] = prefixedHash;
     }
+    secp256k1_context_destroy(ctx);
+
 }
 
 // Função de comparação entre o endereço gerado e o alvo
-int check_key(std::vector<std::string> &generated_keys)
+int check_key(std::vector<std::string> &generated_keys, int thread_id)
 {
 
-    std::vector<std::vector<uint8_t>> generated_addresses;
+    std::vector<std::vector<uint8_t>> generated_addresses(generated_keys.size());
     privateKeyToBitcoinAddress(generated_addresses, generated_keys);
     // Converte a chave privada de hexadecimal para bytes
 
@@ -172,7 +179,7 @@ int check_key(std::vector<std::string> &generated_keys)
         if (generated_addresses[i] == decoded_target_address){
             return i;
         };
-
+        icounter[thread_id] ++;
     }
 
     return 0;
@@ -191,7 +198,7 @@ void *bruteforce_worker(void *args)
     while (!found)
     { // Continue enquanto nenhuma thread encontrar a chave
         generate_random_key(generated_key);
-        if (int position = check_key(generated_key))
+        if (int position = check_key(generated_key, thread_args->thread_id))
         {
             found = 1; // Sinaliza que a chave foi encontrada
             
@@ -210,8 +217,10 @@ void *bruteforce_worker(void *args)
             break; // Sai do loop
         }
 
-        icounter[thread_args->thread_id] += thread_args->batch_size;
-        last_key = generated_key[0];
+
+        if (thread_args->thread_id == 0){
+            last_key = generated_key[0];
+        }
 
     }
 
@@ -246,7 +255,7 @@ int main()
         int refresh_time = get_valid_input("Taxa de atualização (em segundos): ", 2, 1);
         int num_threads = get_valid_input("Quantidade de Threads (Padrão 6): ", 6, 1);
         int num_processes = get_valid_input("Quantidade de Processos (Padrão 2): ", 2, 1);
-        int batch_size = 4096; //get_valid_input("Tamanho do lote: ", 4096, 1);
+        int batch_size = 512; //get_valid_input("Tamanho do lote: ", 4096, 1);
             
         icounter.resize(num_threads);
 
@@ -272,6 +281,7 @@ int main()
         }
 
         auto start_time = std::chrono::high_resolution_clock::now();
+
         if ( pid != 0 || num_processes == 1){
             while (!found) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(refresh_time * 500));
