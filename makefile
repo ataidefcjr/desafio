@@ -2,7 +2,7 @@
 CXX = g++
 
 # Bibliotecas
-LIBS = -lssl -lcrypto -lsecp256k1
+LIBS = -lssl -lcrypto -lsecp256k1 -fopenmp
 
 # Flags de CPU avançadas
 CPU_FLAGS = \
@@ -60,7 +60,7 @@ all: release
 # Build otimizado
 release:
 	@echo "Compilando versão otimizada..."
-	$(CXX) -o $(TARGET) $(SRC) $(CXXFLAGS) $(LIBS)
+	$(CXX) -o $(TARGET) $(SRC) $(CXXFLAGS) -w $(LIBS)
 	@echo "Compilação concluída!"
 	@echo "Execute com: ./$(TARGET)"
 

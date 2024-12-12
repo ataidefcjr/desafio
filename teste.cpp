@@ -16,8 +16,8 @@
 
 int batch_size = 2048;
 int refresh_time = 3;
-int num_threads = 2; // get_valid_input("Quantidade de Threads (Padrão 6): ", 6, 1);
-int num_processes; //get_valid_input("Quantidade de Processos (Padrão 2): ", 2, 1);
+int num_threads = 4;
+int num_processes = 3; 
 
 // Global Variables
 std::string const hex_chars = "0123456789abcdef";
