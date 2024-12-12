@@ -1,6 +1,3 @@
-// Compile With  
-// g++ -o teste teste.cpp -lssl -lcrypto -lsecp256k1          
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
@@ -16,21 +13,21 @@
 #include "base58.cpp"
 #include "base58.h"
 
-int batch_size = 1024;
-int refresh_time = 2;
-int num_threads = 12; //get_valid_input("Quantidade de Threads (Padrão 6): ", 6, 1);
-int num_processes = 1; //get_valid_input("Quantidade de Processos (Padrão 2): ", 2, 1);
+int batch_size = 2048;
+int refresh_time = 3;
+int num_threads =  12; // get_valid_input("Quantidade de Threads (Padrão 6): ", 6, 1);
+int num_processes = 1 ; //get_valid_input("Quantidade de Processos (Padrão 2): ", 2, 1);
 
 // Global Variables
 std::string const hex_chars = "0123456789abcdef";
 
 
-char target_address[35] = "13DiRx5F1b1J8QWKATyLJZSAepKw1PkRbF"; //Test address
-std::string const partial_key = "3xxxxxx84d812356c128ba06a4192587b75a984fd08dbe31af8e9d4e70810ab2"; // Teste Key
+// char target_address[35] = "13DiRx5F1b1J8QWKATyLJZSAepKw1PkRbF"; //Test address
+// std::string const partial_key = "3xxxxxx84d812356c128ba06a4192587b75a984fd08dbe31af8e9d4e70810ab2"; // Teste Key
 
 
-// char target_address[34] = "1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC";
-// std::string const partial_key = "403b3d4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x";
+char target_address[34] = "1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC";
+std::string const partial_key = "403b3d4fcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x";
 
 std::vector<unsigned char> decoded_target_address;
 bool success = decodeBase58(target_address, decoded_target_address);
@@ -85,22 +82,6 @@ void generate_random_key(std::vector<std::string> &output_key) {
     }
 }
 
-// Função para calcular o SHA-256 com contexto compartilhado
-void sha256(SHA256_CTX ctx, std::vector<uint8_t> &data, std::vector<uint8_t> &hash) {
-    SHA256_Init(&ctx);
-    SHA256_Update(&ctx, data.data(), data.size());
-    SHA256_Final(hash.data(), &ctx);
-}
-
-
-// Função para calcular o RIPEMD-160 com contexto compartilhado
-void ripemd160(RIPEMD160_CTX ctx, std::vector<uint8_t> &data, std::vector<uint8_t> &hash)
-{
-    RIPEMD160_Init(&ctx);
-    RIPEMD160_Update(&ctx, data.data(), data.size());
-    RIPEMD160_Final(hash.data(), &ctx);
-}
-
 
 // Converter hex para bytes
 std::vector<uint8_t> hexToBytes(const std::string &hex)
@@ -141,18 +122,27 @@ void privateKeyToBitcoinAddress(std::vector<std::vector<uint8_t>> &generated_add
         secp256k1_ec_pubkey_serialize(ctx, publicKey.data(), &publicKeyLen, &pubkey, SECP256K1_EC_COMPRESSED);
 
         // SHA256 da chave pública
-        sha256(sctx, publicKey, sha256Buffer);
+        SHA256_Init(&sctx);
+        SHA256_Update(&sctx, publicKey.data(), publicKey.size());
+        SHA256_Final(sha256Buffer.data(), &sctx);
         
-        // RIPEMD160 do resultado do SHA256
-        ripemd160(rctx, sha256Buffer, ripemd160Buffer);
+        // RIPEMD160
+        RIPEMD160_Init(&rctx);
+        RIPEMD160_Update(&rctx, sha256Buffer.data(), sha256Buffer.size());
+        RIPEMD160_Final(ripemd160Buffer.data(), &rctx);
 
         // Adiciona prefixo de rede (0x00 para mainnet)
         prefixedHash[0] = 0x00;
         std::copy(ripemd160Buffer.begin(), ripemd160Buffer.end(), prefixedHash.begin() + 1);
 
-        // Calcula o checksum (duplo SHA256 do prefixedHash)
-        sha256(sctx, prefixedHash, sha256Buffer);
-        sha256(sctx, sha256Buffer, sha256Buffer);
+        SHA256_Init(&sctx);
+        SHA256_Update(&sctx, prefixedHash.data(), prefixedHash.size());
+        SHA256_Final(sha256Buffer.data(), &sctx);
+        
+        SHA256_Init(&sctx);
+        SHA256_Update(&sctx, sha256Buffer.data(), sha256Buffer.size());
+        SHA256_Final(sha256Buffer.data(), &sctx);
+
 
         // Monta o endereço final (versão + hash + checksum)
         std::copy(prefixedHash.begin(), prefixedHash.end(), finalHash.begin());
@@ -176,13 +166,11 @@ int check_key(std::vector<std::string> &generated_keys, int thread_id)
         
         if (generated_addresses[i] == decoded_target_address){
             return i;
-        };
+        }
+        icounter[thread_id] ++;
     }
     
-    icounter[thread_id] += batch_size;
-
     return 0;
-
 }
 
 // Worker
@@ -251,7 +239,8 @@ int main()
         // test();
         // return 1;
 
-
+        // num_threads = get_valid_input("Quantidade de Threads (Padrão 6): ", 6, 1);
+        // num_processes = get_valid_input("Quantidade de Processos (Padrão 2): ", 2, 1);
             
         icounter.resize(num_threads);
 
@@ -286,8 +275,10 @@ int main()
                 std::chrono::duration<double> elapsed = current_time - start_time;
                 int total;
                 for (int i=0; i < icounter.size(); i++){
+                    pthread_mutex_lock(&counter_lock);
                     total += icounter[i];
                     icounter[i] = 0;
+                    pthread_mutex_unlock(&counter_lock);
                 }
                 double keys_per_second = (total * num_processes) / elapsed.count();
 
