@@ -14,17 +14,17 @@
 #include <fstream>
 #include "base58.h"
 
-int batch_size = 2048;
-int refresh_time = 3;
+int batch_size = 65536;
+int refresh_time = 2;
 int num_threads = 4;
 int num_processes = 3; 
 
 // Global Variables
+static secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
 std::string const hex_chars = "0123456789abcdef";
 
 std::string partial_key;
 std::string target_address;
-
 std::vector<unsigned char> decoded_target_address;
 
 volatile int found = 0;
@@ -33,7 +33,8 @@ pthread_mutex_t counter_lock = PTHREAD_MUTEX_INITIALIZER;
 
 std::string last_key;
 
-std::vector<int> icounter = {0};
+std::vector<int> global_counter = {0};
+
 
 // Threads Args
 typedef struct
@@ -116,9 +117,8 @@ std::vector<uint8_t> hexToBytes(const std::string &hex)
 
 
 // Função principal para converter uma chave privada em endereço Bitcoin
-void privateKeyToBitcoinAddress(std::vector<std::vector<uint8_t>> &generated_addresses, std::vector<std::string> &generated_keys)
+void privateKeyToBitcoinAddress(std::vector<std::vector<uint8_t>> &generated_addresses, std::vector<std::string> &generated_keys, int thread_id)
 {
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
 
     std::vector<uint8_t> publicKey(33);
     std::vector<uint8_t> sha256Buffer(32);
@@ -169,8 +169,9 @@ void privateKeyToBitcoinAddress(std::vector<std::vector<uint8_t>> &generated_add
         std::copy(sha256Buffer.begin(), sha256Buffer.begin() + 4, finalHash.begin() + 21);
 
         generated_addresses[i] = finalHash;
+
+        global_counter[thread_id] ++;
     }
-    secp256k1_context_destroy(ctx);
 }
 
 // Função de comparação entre o endereço gerado e o alvo
@@ -178,7 +179,7 @@ int check_key(std::vector<std::string> &generated_keys, int thread_id)
 {
 
     std::vector<std::vector<uint8_t>> generated_addresses(batch_size);
-    privateKeyToBitcoinAddress(generated_addresses, generated_keys);
+    privateKeyToBitcoinAddress(generated_addresses, generated_keys, thread_id);
     // Converte a chave privada de hexadecimal para bytes
 
     
@@ -187,7 +188,6 @@ int check_key(std::vector<std::string> &generated_keys, int thread_id)
         if (generated_addresses[i] == decoded_target_address){
             return i;
         }
-        icounter[thread_id] ++;
     }
     
     return 0;
@@ -251,7 +251,7 @@ int main()
 
         bool success = decodeBase58(target_address, decoded_target_address);
         
-        icounter.resize(num_threads);
+        global_counter.resize(num_threads);
 
         pid_t pid;
 
@@ -274,31 +274,30 @@ int main()
             pthread_create(&threads[i], nullptr, bruteforce_worker, &thread_args[i]);
         }
 
-        auto start_time = std::chrono::high_resolution_clock::now();
 
         if ( pid != 0 || num_processes == 1){
 
-            std::cout << "Address: " << target_address << std::endl;
+            std::cout << "Starting search on Address: " << target_address << std::endl;
             std::cout << "Partial Key: " << partial_key << std::endl;
+            auto start_time = std::chrono::high_resolution_clock::now();
 
             while (!found) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(refresh_time * 500));
+                std::this_thread::sleep_for(std::chrono::milliseconds(refresh_time * 1000));
 
                 auto current_time = std::chrono::high_resolution_clock::now();
                 std::chrono::duration<double> elapsed = current_time - start_time;
                 int total;
-                for (int i=0; i < icounter.size(); i++){
+                for (int i=0; i < global_counter.size(); i++){
                     pthread_mutex_lock(&counter_lock);
-                    total += icounter[i];
-                    icounter[i] = 0;
+                    total += global_counter[i];
+                    global_counter[i] = 0;
                     pthread_mutex_unlock(&counter_lock);
                 }
                 double keys_per_second = (total * num_processes) / elapsed.count();
 
-                std::cout << "\r" << keys_per_second << " Keys/s" << " Last Key Checked: " << last_key << "         " << std::flush;
+                std::cout << "\rSpeed: " << keys_per_second << " Keys/s   " << std::flush;
                 total = 0;
                 start_time = std::chrono::high_resolution_clock::now();
-                std::this_thread::sleep_for(std::chrono::milliseconds(refresh_time * 500));
             }
 
         }
